@@ -1,0 +1,17 @@
+#! /usr/bin/env php
+<?php
+// vim: syntax=php
+require __DIR__.'/vendor/autoload.php';
+
+use Symfony\Component\Console\Application;
+use Particular\Ebay\Command\MkdirsCommand;
+use Particular\Ebay\Command\MovedirsCommand;
+
+define('COMMAND_DIR', __DIR__);
+
+$application = new Application();
+
+$application->add(new MkdirsCommand());
+$application->add(new MovedirsCommand());
+
+$application->run();
