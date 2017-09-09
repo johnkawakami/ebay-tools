@@ -1,17 +1,17 @@
 # based on https://github.com/davidtsadler/ebay-sdk-examples/blob/master/configuration.php.example
 sandbox:
     credentials:
-        appID: xx
-        devID: xx
-        certID: xx
+        appId: xx
+        devId: xx
+        certId: xx
     authToken: xx
     oauthUserToken: xx
     ruName: xx
 production:
     credentials:
-        appID: ss
-        devID: ss
-        certID: ss
+        appId: ss
+        devId: ss
+        certId: ss
     authToken: xx
     oauthUserToken: xx
     ruName: xx

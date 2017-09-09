@@ -6,7 +6,7 @@ require __DIR__.'/vendor/autoload.php';
 use Symfony\Component\Console\Application;
 use Particular\Ebay\Command\MkdirsCommand;
 use Particular\Ebay\Command\MovedirsCommand;
-use Particular\Ebay\Command\TryEbayApiCommand;
+use Particular\Ebay\Command\TimeApiCommand;
 
 define('COMMAND_DIR', __DIR__);
 
@@ -14,6 +14,6 @@ $application = new Application();
 
 $application->add(new MkdirsCommand());
 $application->add(new MovedirsCommand());
-$application->add(new TryEbayApiCommand());
+$application->add(new TimeApiCommand());
 
 $application->run();
