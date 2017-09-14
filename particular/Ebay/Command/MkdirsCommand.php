@@ -38,7 +38,7 @@ class MkdirsCommand extends Command
         $last = $input->getArgument('last');
         $padding = false;
 
-        if (preg_match('/(^[a-z]*)([0-9]*)/', $first, $matches)) 
+        if (preg_match('/(^[a-z]*)([0-9]*)/i', $first, $matches)) 
         {
             $prefix = $matches[1];
             $low = intval($matches[2]);
@@ -48,7 +48,7 @@ class MkdirsCommand extends Command
             }
         }
 
-        if (preg_match('/([a-z]*)([0-9]*)/', $last, $matches)) 
+        if (preg_match('/([a-z]*)([0-9]*)/i', $last, $matches)) 
         {
             $prefix = $matches[1];
             $high = intval($matches[2]);
