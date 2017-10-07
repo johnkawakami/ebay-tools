@@ -2,6 +2,7 @@
 
 namespace Particular\Ebay\Command;
 
+use Particular\Ebay\Traits;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -9,6 +10,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class MovedirsCommand extends Command 
 {
+    use Traits\StateDirectory;
+
     protected function configure()
     {
         $this
@@ -45,17 +48,6 @@ class MovedirsCommand extends Command
                 echo "Error moving $oldpath.\n";
             };
         }
-    }
-
-    private function locateState($sku) {
-        $states = [ 'incoming', 'active', 'sold' ];
-        foreach($states as $state) {
-            $path = COMMAND_DIR."/../$state/$sku";
-            if (file_exists($path)) {
-                return $state;
-            }
-        }
-        echo "Warning: $sku not found in any state.\n";
     }
 
 }
