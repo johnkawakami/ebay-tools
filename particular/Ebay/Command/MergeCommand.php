@@ -35,18 +35,26 @@ class MergeCommand extends Command
 
         // we use this to open nautilus
         $path = COMMAND_DIR."/../".$this->locateState($targetSKU)."/$targetSKU/";
+        $index = $path."/combined.txt";
 
         foreach($skus as $sku) {
             $this->move($sku, $targetSKU);
         }
 
+        $moreSKUs = [];
         if ($read_stdin) {
             while($line = fgets(STDIN)) {
                 $line = trim($line);
                 if (!$line) continue; // blank line
 
                 $this->move($line, $targetSKU);
+
+                $moreSKUs[] = $line;
             }
+        }
+
+        if (!file_exists($index)) {
+            file_put_contents($index, implode("\n", array_merge(array($targetSKU), $skus, $moreSKUs)));
         }
 
         exec("nautilus \"$path\"");

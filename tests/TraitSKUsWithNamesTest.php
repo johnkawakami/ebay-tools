@@ -24,6 +24,7 @@ class TraitSKUsWithNamesTest extends TestCase
 
             rmdir($dir);
         } catch ( Exception $e ) {
+            // ignore missing data dir
         }
 
         mkdir($dir);
@@ -50,7 +51,6 @@ class TraitSKUsWithNamesTest extends TestCase
         $name = $this->mock->getSKUFromFilename('I103 fake name');
         $this->assertEquals( $name, 'i103' );
     }
-
     public function testGetSKUDirs()
     {
         $s = $this->mock->getAllDirsMatchingSKU( $this->active, 'i102' );
@@ -59,7 +59,6 @@ class TraitSKUsWithNamesTest extends TestCase
         $s = $this->mock->getLongestDirFromSKU( $this->active, 'i102' );
         $this->assertEquals( 'I102 some name', $s );
     }
-
     public function testMerge()
     {
         $this->mock->mergeDirs( $this->active.'i102', $this->active.'I102 some name' );
@@ -84,5 +83,10 @@ class TraitSKUsWithNamesTest extends TestCase
         $this->assertFileExists( $this->active.'I103 some name/file2.txt' );
         // file2 is the same in both and should have been deleted
         $this->assertFalse( file_exists($this->active.'I103 some name/file2 1.txt') );
+    }
+    public function testRenameToCanonical()
+    {
+        $this->mock->renameToCanonicalSKU( $this->active.'I103 some name' );
+        $this->assertFileExists( $this->active.'i103' );
     }
 }

@@ -11,6 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class MovedirsCommand extends Command 
 {
     use Traits\StateDirectory;
+    use Traits\SKUsWithNames;
 
     protected function configure()
     {
