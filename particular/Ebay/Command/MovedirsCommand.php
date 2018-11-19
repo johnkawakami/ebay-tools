@@ -25,6 +25,12 @@ class MovedirsCommand extends Command
         ;
     }
 
+    /**
+     * The logic here should be changed. Rather than finding the state and then moving it,
+     * figure out the best target filename, and then find the SKUs in all the states and
+     * the shared folder, and then move or copy all the files into the target.
+     *
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $targetState = $input->getArgument('targetState');
@@ -33,21 +39,50 @@ class MovedirsCommand extends Command
             $line = trim($line);
             if (!$line) continue; // blank line
 
-            $state = $this->locateState($line);
-            if (!$state) continue; // can't find the sku in a state
-            if ($state == $targetState) continue; // sku is already in that state
-            
-            $oldpath = COMMAND_DIR."/../$state/".$line;
-            $newpath = COMMAND_DIR."/../$targetState/".$line;
+            $sku = $this->getCanonicalSKU($line);
 
-            if (file_exists($newpath)) {
-                echo "Warning: $newpath exists. Not moving $line.\n";
-                continue; // collision moving the file
+            $paths = [];
+            // consolidate sku directories in each state
+            foreach($this->getStates() as $state) {
+                $path = realpath(COMMAND_DIR."/../$state/");
+                $paths[] = $this->mergeDirsForSKU($path, $sku);
+            }
+            $paths = array_filter($paths, "is_string");
+
+            if (count($paths)==0) continue;
+
+            // preserve the longest filename
+            usort(
+                $paths, function ($a, $b) {
+                    $aname = pathinfo($a, PATHINFO_BASENAME);
+                    $bname = pathinfo($b, PATHINFO_BASENAME);
+                    return (strlen($aname) < strlen($bname)) ? 1 : -1;
+                }
+            );
+            $longest = pathinfo($paths[0], PATHINFO_BASENAME);
+
+            // we want to use this directory
+            $targetPath = realpath(COMMAND_DIR."/../$targetState/") . 
+                          DIRECTORY_SEPARATOR . $longest;
+            if (!is_dir($targetPath)) {
+                mkdir($targetPath);
+            }
+            //var_dump("targetPath", $targetPath);
+
+            // create an array of source paths, excluding the targetPath
+            $sources = array_diff($paths, array($targetPath));
+            // var_dump("source", $sources);
+
+            foreach ($sources as $source) {
+                $this->mergeDirs($targetPath, $source);
+                if (file_exists($source)) {
+                    unlink($source);
+                }
             }
 
-            if (!rename($oldpath, $newpath)) {
-                echo "Error moving $oldpath.\n";
-            };
+            // now look in the shared directory to find a sku dir there
+            // if it exists, copy the files down into the targetPath
+            // fixme
         }
     }
 

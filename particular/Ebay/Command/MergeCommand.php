@@ -60,7 +60,7 @@ class MergeCommand extends Command
         exec("nautilus \"$path\"");
     }
 
-    private function move($sku, $targetSKU) {
+    public function move($sku, $targetSKU) {
         $tss = $this->locateState($targetSKU);
         $ss = $this->locateState($sku);
         $oldpath = COMMAND_DIR."/../$ss/".$sku;

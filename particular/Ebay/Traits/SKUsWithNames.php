@@ -60,9 +60,27 @@ trait SKUsWithNames
      */
     public function getSKUFromFilename( $filename ) 
     {
-        preg_match("/^([a-z][0-9]+?) (.*)$/i", $filename, $matches);
-        $sku = strtolower($matches[1]);
-        return $sku;
+        if (preg_match("/^([a-z][0-9]+)\s*(.*)$/i", $filename, $matches)) {
+            $sku = strtolower($matches[1]);
+            return $sku;
+        }
+    }
+    
+    /**
+     * Converts a SKU into it's canonical form.
+     *
+     * @param string $sku 
+     *
+     * @return string canonical sku
+     *
+     * We just use the filename converter for now.  In the future
+     * we would need to do the work in here, and then parse out 
+     * the alpha and numerical parts, and pad out the numberic part
+     * with zeros.
+     */
+    public function getCanonicalSKU( $sku )
+    {
+        return $this->getSKUFromFilename($sku);
     }
 
     /**
@@ -117,15 +135,16 @@ trait SKUsWithNames
      * @param string $path to the directory
      * @param string $sku  the sku to merge
      *
-     * @return void
+     * @return (string|null) the path that's used, or null if no directory existed
      */
     public function mergeDirsForSKU( $path, $sku ) 
     {
         $dirs = $this->getAllDirsMatchingSKU($path, $sku);
-        $longest = $this->getLongestDirFromSKU($path, $sku);
         $count = count($dirs);
-        if ($count == 0) return;
-        if ($count == 1) return;
+        if ($count == 0) return null;
+        if ($count == 1) return $path.DIRECTORY_SEPARATOR.$dirs[0];
+
+        $longest = $this->getLongestDirFromSKU($path, $sku);
 
         foreach ($dirs as $dir) {
             if ($dir !== $longest) {
@@ -135,7 +154,7 @@ trait SKUsWithNames
                 );
             }
         }
-        return;
+        return $path.DIRECTORY_SEPARATOR.$longest;
     }
 
     /**
@@ -183,24 +202,36 @@ trait SKUsWithNames
             $name = $fname;
 
             // if the file exists, and it's the same file, delete one file
-            if (file_exists($path1 . DIRECTORY_SEPARATOR . $fname)) {
-                if ($this->_hashFile($path1 . DIRECTORY_SEPARATOR . $fname) === $this->_hashFile($path2 . DIRECTORY_SEPARATOR . $fname)) {
-                    unlink($path2 . DIRECTORY_SEPARATOR . $fname);
-                    continue;
+            $theFilePath1 = realpath($path1) . DIRECTORY_SEPARATOR . $fname;
+            $theFilePath2 = realpath($path2) . DIRECTORY_SEPARATOR . $fname;
+            // if the file is a directory, recursively copy it over
+            if (is_dir($theFilePath2)) {
+                if (!file_exists($theFilePath1)) {
+                    mkdir($theFilePath1);
                 }
+                $this->mergeDirs($theFilePath1, $theFilePath2);
+            } else {
+                if (file_exists($theFilePath1) && !is_dir($theFilePath1)) {
+                    // if there's a collision with an existing file, rename the file
+                    //
+                    // if the file is identical, just delete the duplicate
+                    if ($this->_hashFile($theFilePath1) === $this->_hashFile($theFilePath2)) {
+                        unlink($theFilePath2);
+                        continue;
+                    }
 
-                $parts = pathinfo($fname);
-                $filename = $parts['filename'];
-                $extension = $parts['extension'];
+                    $parts = pathinfo($fname);
+                    $filename = $parts['filename'];
+                    $extension = $parts['extension'];
 
-                $counter = 1;
-                while (file_exists($path1 . DIRECTORY_SEPARATOR . $name)) {
-                    $name = $filename . ' ' . $counter . '.' . $extension;
-                    $counter++;
+                    $counter = 1;
+                    while (file_exists(realpath($path1) . DIRECTORY_SEPARATOR . $name)) {
+                        $name = $filename . ' ' . $counter . '.' . $extension;
+                        $counter++;
+                    }
                 }
+                rename($theFilePath2, realpath($path1) . DIRECTORY_SEPARATOR . $name);
             }
-
-            rename($path2 . DIRECTORY_SEPARATOR . $fname, $path1 . DIRECTORY_SEPARATOR . $name);
         }
         rmdir($path2);
     }
