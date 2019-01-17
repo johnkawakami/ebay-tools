@@ -11,6 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class MergeCommand extends Command 
 {
     use Traits\StateDirectory;
+    use Traits\SKUsWithNames;
 
     protected function configure()
     {
@@ -25,9 +26,16 @@ class MergeCommand extends Command
         ;
     }
 
+    // fixme - this is just all wrong. it needs to be simpler and cleaner.
+    // This needs to be more of a macro, like:
+    //   find all the target sku dirs and consolidate into 'active'
+    //     create a new dir if it doesn't already exist
+    //   find all the source sku dirs and consolidate them into one place
+    //     if a source sku dir doesn't exist, continue
+    //   move the source sku dir into the target sku dir
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $targetSKU = $input->getArgument('targetSKU');
+        $targetSKU = $this->getCanonicalSKU($input->getArgument('targetSKU'));
         $skus = $input->getArgument('skus');
 
         // if we provide only the target sku, we read stdin for skus
@@ -47,7 +55,9 @@ class MergeCommand extends Command
                 $line = trim($line);
                 if (!$line) continue; // blank line
 
-                $this->move($line, $targetSKU);
+                $sku = $this->getCanonicalSKU($line);
+
+                $this->move($sku, $targetSKU);
 
                 $moreSKUs[] = $line;
             }
@@ -57,28 +67,37 @@ class MergeCommand extends Command
             file_put_contents($index, implode("\n", array_merge(array($targetSKU), $skus, $moreSKUs)));
         }
 
-        exec("nautilus \"$path\"");
+        if (file_exists($path)) 
+        {
+            exec("nautilus \"$path\"");
+        }
     }
 
+    /**
+     * Move the sku into the targetSKU
+     */
     public function move($sku, $targetSKU) {
-        $tss = $this->locateState($targetSKU);
-        $ss = $this->locateState($sku);
-        $oldpath = COMMAND_DIR."/../$ss/".$sku;
-        $newpath = COMMAND_DIR."/../$tss/".$targetSKU.'/'.$sku;
+        // move all the sku directories into the active state
+        $sourcePath = $this->cleanSKUAndMoveInto($sku, 'active');
 
-        if (file_exists($newpath)) {
-            echo "Warning: $newpath exists. Not moving $line.\n";
-            return;
-        }
+        // find the targetSKU's state
+        $targetState = $this->locateState($targetSKU);
+
+        // merge all the targetSKU directories into one
+        $targetPath = $this->mergeDirsForSKU($this->makeTargetPath($targetState), $targetSKU);
 
         if ($sku == $targetSKU) {
             echo "Cannot move to itself.\n";
             return;
         }
 
-        if (!rename($oldpath, $newpath)) {
-            echo "Error moving $oldpath.\n";
-        };
+        // sanity check - targetPath exists, and sourcePath exists
+        if (is_dir($sourcePath) && is_dir($targetPath)) {
+            $targetFilename = pathinfo($sourcePath, PATHINFO_BASENAME);
+            if (!rename($sourcePath, $targetPath . DIRECTORY_SEPARATOR . $targetFilename)) {
+                echo "Error moving $sourcePath.\n";
+            };
+        }
 
     }
 

@@ -38,6 +38,8 @@ class MkdirsCommand extends Command
         $last = $input->getArgument('last');
         $padding = false;
 
+        if (!$last) { $last = $first; }
+
         if (preg_match('/(^[a-z]*)([0-9]*)/i', $first, $matches)) 
         {
             $prefix = $matches[1];

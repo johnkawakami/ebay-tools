@@ -12,13 +12,14 @@ class MovedirsCommand extends Command
 {
     use Traits\StateDirectory;
     use Traits\SKUsWithNames;
+    use Traits\SharedDirectory;
 
     protected function configure()
     {
         $this
             ->setName('mvdirs')
-            ->setDescription('Moves SKU directories into the state directories based on a list of SKUs piped into stdin.')
-            ->setHelp('SKU directories contain information and photos of the SKU. The SKU directories are inside directories indicating the state of the SKU. The states are "incoming", "active", and "sold". mvdirs moves a SKU into a specified state.');
+            ->setDescription('Moves SKU directories into the state directories based on a list of SKUs piped into stdin. Also merges each SKU directory into one SKU directory.')
+            ->setHelp('SKU directories contain information and photos of the SKU. The SKU directories are inside directories indicating the state of the SKU. The states are "incoming", "active", and "sold". mvdirs moves a SKU into a specified state, and also copies down any files from shared SKU directories. Side effect is that all the shared SKU directories are merged into one shared SKU directory.');
 
         $this
             ->addArgument('targetState', InputArgument::REQUIRED, 'State to which SKUs are assigned.')
@@ -41,50 +42,24 @@ class MovedirsCommand extends Command
 
             $sku = $this->getCanonicalSKU($line);
 
-            $paths = [];
-            // consolidate sku directories in each state
-            foreach($this->getStates() as $state) {
-                $path = realpath(COMMAND_DIR."/../$state/");
-                $paths[] = $this->mergeDirsForSKU($path, $sku);
-            }
-            $paths = array_filter($paths, "is_string");
+            $targetPath = $this->cleanSKUAndMoveInto($sku, $targetState);
+            // echo "targetPath was $targetPath\n";
 
-            if (count($paths)==0) continue;
-
-            // preserve the longest filename
-            usort(
-                $paths, function ($a, $b) {
-                    $aname = pathinfo($a, PATHINFO_BASENAME);
-                    $bname = pathinfo($b, PATHINFO_BASENAME);
-                    return (strlen($aname) < strlen($bname)) ? 1 : -1;
-                }
-            );
-            $longest = pathinfo($paths[0], PATHINFO_BASENAME);
-
-            // we want to use this directory
-            $targetPath = realpath(COMMAND_DIR."/../$targetState/") . 
-                          DIRECTORY_SEPARATOR . $longest;
-            if (!is_dir($targetPath)) {
-                mkdir($targetPath);
-            }
-            //var_dump("targetPath", $targetPath);
-
-            // create an array of source paths, excluding the targetPath
-            $sources = array_diff($paths, array($targetPath));
-            // var_dump("source", $sources);
-
-            foreach ($sources as $source) {
-                $this->mergeDirs($targetPath, $source);
-                if (file_exists($source)) {
-                    unlink($source);
-                }
-            }
-
-            // now look in the shared directory to find a sku dir there
+            // look in the shared directory to find a sku dir there
             // if it exists, copy the files down into the targetPath
-            // fixme
+            // we don't move the files - they stay in the shared directory
+            if ($this->SKUExistsInPath($this->sharedPath(), $sku)) {
+                $targetSharedDir = $this->mergeDirsForSKU($this->sharedPath(), $sku);
+                $longest = $this->getLongestFilename(array($targetSharedDir, $targetPath));
+                print_r($longest);
+                $bestTarget = $this->makeTargetPath($targetState, $longest['filename']);
+                // echo "bestTarget $bestTarget\n";
+                $this->copyDirs($bestTarget, $targetSharedDir);
+                $this->mergeDirsForSKU($this->sharedPath(), $sku);
+            }
         }
     }
+
 
 }
 

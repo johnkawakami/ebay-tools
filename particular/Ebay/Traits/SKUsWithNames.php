@@ -47,7 +47,7 @@ trait SKUsWithNames
     {
         $sku = strtolower($sku);
         $dirs = $this->getAllDirsMatchingSKU($path, $sku);
-        var_dump($dirs);
+        // var_dump($dirs);
         return (count($dirs) > 0);
     }
 
@@ -111,6 +111,7 @@ trait SKUsWithNames
      */
     public function getLongestDirFromSKU( $path, $sku ) 
     {
+        // fixme dry this code out with getLongestFilename
         $sku = strtolower($sku);
         $dirs = $this->getAllDirsMatchingSKU($path, $sku);
         usort(
@@ -123,6 +124,36 @@ trait SKUsWithNames
         } else {
             throw new \RuntimeException($sku . ' does not exist in ' . $path);
         }
+    }
+
+    /**
+     * Given an array of filenames or filepaths, return the
+     * longest filename and filepath.
+     *
+     * @param array $paths
+     *
+     * @return array [ 'filename' => $filename, 'filepath' => $filepath ]
+     */
+    public function getLongestFilename($paths) 
+    {
+        if (!is_array($paths)) {
+            $paths = array($paths);
+        }
+        if (count($paths)>0) {
+            // preserve the longest filename
+            usort(
+                $paths, function ($a, $b) {
+                    $aname = pathinfo($a, PATHINFO_BASENAME);
+                    $bname = pathinfo($b, PATHINFO_BASENAME);
+                    return (strlen($aname) < strlen($bname)) ? 1 : -1;
+                }
+            );
+            $longestPath = $paths[0];
+            $longestFilename = pathinfo($paths[0], PATHINFO_BASENAME);
+        } else {
+            $longestPath = $longestFilename = $paths[0];
+        }
+        return [ "filepath" => $longestPath, "filename" => $longestFilename ];
     }
 
     /**
@@ -139,10 +170,11 @@ trait SKUsWithNames
      */
     public function mergeDirsForSKU( $path, $sku ) 
     {
+        // echo "mergeDirsForSKU $path, $sku\n";
         $dirs = $this->getAllDirsMatchingSKU($path, $sku);
         $count = count($dirs);
         if ($count == 0) return null;
-        if ($count == 1) return $path.DIRECTORY_SEPARATOR.$dirs[0];
+        if ($count == 1) return realpath($path . DIRECTORY_SEPARATOR . $dirs[0]);
 
         $longest = $this->getLongestDirFromSKU($path, $sku);
 
@@ -154,7 +186,7 @@ trait SKUsWithNames
                 );
             }
         }
-        return $path.DIRECTORY_SEPARATOR.$longest;
+        return realpath($path.DIRECTORY_SEPARATOR.$longest);
     }
 
     /**
@@ -168,6 +200,7 @@ trait SKUsWithNames
      */
     public function getAllDirsMatchingSKU( $path, $sku ) 
     {
+        // echo "getAllDirsMatchingSKU $path, $sku\n";
         $sku = strtolower($sku);
         $dirs = new \CallbackFilterIterator(
             new \DirectoryIterator($path), 
@@ -185,15 +218,28 @@ trait SKUsWithNames
     }
 
     /**
-     * Merges all the files from $path2 into $path1, and deletes $path2.
+     * Copies or merges all the files from $path2 into $path1, and deletes $path2.
+     *
+     * Copying is like merging, except we never delete the source file.
+     *
+     * fixme - this should be in its own trait
      *
      * @param string $path1 target directory's path
      * @param string $path2 directory to merge into $path1
      *
      * @return void
      */
-    public function mergeDirs($path1, $path2)
+    public function copyDirs($path1, $path2, $merge = false)
     {
+        if (!file_exists($path1)) { mkdir($path1); }
+        $path1 = realpath($path1);
+        $path2 = realpath($path2);
+
+        if ($path1 == $path2) {
+            throw new \Exception("copyDirs both paths are $path1");
+        }
+
+        // echo "copyDirs $path1, $path2\n";
         $d = new \DirectoryIterator($path2);
         foreach ($d as $fileInfo) {
             if ($fileInfo->isDot()) continue;
@@ -202,21 +248,25 @@ trait SKUsWithNames
             $name = $fname;
 
             // if the file exists, and it's the same file, delete one file
-            $theFilePath1 = realpath($path1) . DIRECTORY_SEPARATOR . $fname;
-            $theFilePath2 = realpath($path2) . DIRECTORY_SEPARATOR . $fname;
+            $theFilePath1 = $path1 . DIRECTORY_SEPARATOR . $fname;
+            $theFilePath2 = $path2 . DIRECTORY_SEPARATOR . $fname;
             // if the file is a directory, recursively copy it over
             if (is_dir($theFilePath2)) {
                 if (!file_exists($theFilePath1)) {
                     mkdir($theFilePath1);
                 }
-                $this->mergeDirs($theFilePath1, $theFilePath2);
+                $this->copyDirs($theFilePath1, $theFilePath2, $merge);
             } else {
                 if (file_exists($theFilePath1) && !is_dir($theFilePath1)) {
                     // if there's a collision with an existing file, rename the file
                     //
                     // if the file is identical, just delete the duplicate
                     if ($this->_hashFile($theFilePath1) === $this->_hashFile($theFilePath2)) {
-                        unlink($theFilePath2);
+                        if ($merge) {
+                            unlink($theFilePath2);
+                        } else {
+                            // do nothing for copies
+                        }
                         continue;
                     }
 
@@ -225,15 +275,25 @@ trait SKUsWithNames
                     $extension = $parts['extension'];
 
                     $counter = 1;
-                    while (file_exists(realpath($path1) . DIRECTORY_SEPARATOR . $name)) {
+                    while (file_exists($path1 . DIRECTORY_SEPARATOR . $name)) {
                         $name = $filename . ' ' . $counter . '.' . $extension;
                         $counter++;
                     }
                 }
-                rename($theFilePath2, realpath($path1) . DIRECTORY_SEPARATOR . $name);
+                if ($merge) {
+                    rename($theFilePath2, $path1 . DIRECTORY_SEPARATOR . $name);
+                } else {
+                    copy($theFilePath2, $path1 . DIRECTORY_SEPARATOR . $name);
+                }
             }
         }
-        rmdir($path2);
+        if ($merge) {
+            rmdir($path2);
+        }
+    }
+    public function mergeDirs($path1, $path2)
+    {
+        $this->copyDirs($path1, $path2, true);
     }
 
     /**
