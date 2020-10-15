@@ -24,6 +24,7 @@ class SerpCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+		global $FIREFOX;
         $delay = intval($input->getArgument('delay'));
 
         while($line = fgets(STDIN)) {
@@ -34,10 +35,10 @@ class SerpCommand extends Command
 
             foreach($parts as $part) {
                 $url = "https://www.bing.com/search?q=".urlencode($part);
-                exec("firefox \"$url\"");
+                exec("$FIREFOX \"$url\"");
 
                 $url = "https://www.google.com/search?client=ubuntu&channel=fs&q=".urlencode($part);
-                exec("firefox \"$url\"");
+                exec("$FIREFOX \"$url\"");
             }
 
             sleep($delay);

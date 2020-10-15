@@ -20,13 +20,13 @@ class SearchCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+		global $SYSTEM, $FIREFOX;;
         while($line = fgets(STDIN)) {
             $line = trim($line);
             if (!$line) continue; // blank line
 
             $url = "https://www.ebay.com/sch/i.html?_nkw=".urlencode($line);
-
-            exec("firefox \"$url\"");
+			exec("$FIREFOX \"$url\"");
         }
     }
 }

@@ -15,6 +15,18 @@ use Particular\Ebay\Command\MergeCommand;
 
 define('COMMAND_DIR', __DIR__);
 
+switch( PHP_OS ) 
+{
+case 'Darwin': 
+	$SYSTEM = 'MAC'; 
+	$FIREFOX = '/Applications/Firefox.app/Contents/MacOS/firefox';
+	break;
+default: 
+	$SYSTEM = 'UNIX'; 
+	$FIREFOX = 'firefox';
+	break;
+}
+
 $application = new Application();
 
 $application->add(new MkdirsCommand());
