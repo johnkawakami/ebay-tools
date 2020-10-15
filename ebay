@@ -4,7 +4,6 @@
 require __DIR__.'/vendor/autoload.php';
 
 use Symfony\Component\Console\Application;
-use Particular\Ebay\Command\GetUserTokenCommand;
 use Particular\Ebay\Command\MkdirsCommand;
 use Particular\Ebay\Command\MovedirsCommand;
 use Particular\Ebay\Command\ResearchCommand;
@@ -12,7 +11,6 @@ use Particular\Ebay\Command\SearchCommand;
 use Particular\Ebay\Command\SerpCommand;
 use Particular\Ebay\Command\ShareCommand;
 use Particular\Ebay\Command\TimeApiCommand;
-use Particular\Ebay\Command\WatermarkCommand;
 use Particular\Ebay\Command\MergeCommand;
 
 define('COMMAND_DIR', __DIR__);
@@ -22,8 +20,6 @@ $application = new Application();
 $application->add(new MkdirsCommand());
 $application->add(new MovedirsCommand());
 $application->add(new TimeApiCommand());
-$application->add(new WatermarkCommand());
-$application->add(new GetUserTokenCommand());
 $application->add(new SearchCommand());
 $application->add(new ShareCommand());
 $application->add(new ResearchCommand());
